@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MemoLog">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>MemoLog</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap');
+
+:root {
+  --bg: #000000;
+  --surface: #111111;
+  --surface2: #1a1a1a;
+  --border: rgba(255,255,255,0.09);
+  --text: #ffffff;
+  --muted: #666666;
+  --dim: #444444;
+  --accent: #ffffff;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --tab-h: 60px;
+  --header-h: 56px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  overscroll-behavior: none;
+}
+
+/* ── APP SHELL ── */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding-top: var(--safe-top);
+}
+
+/* ── STATUS BAR FILL ── */
+#statusBar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--safe-top);
+  background: #000;
+  z-index: 200;
+}
+
+/* ── HEADER ── */
+header {
+  height: var(--header-h);
+  background: #000;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+.logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  letter-spacing: 0.01em;
+}
+.logo em { opacity: 0.4; font-style: italic; }
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-time {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-align: right;
+  line-height: 1.5;
+}
+
+/* Install button */
+#installBtn {
+  display: none;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+#installBtn:hover { background: #fff; color: #000; border-color: #fff; }
+#installBtn.visible { display: block; }
+
+/* ── SCREEN CONTAINER ── */
+#screens {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  display: none;
+  padding-bottom: calc(var(--tab-h) + var(--safe-bottom) + 16px);
+}
+
+.screen.active { display: block; }
+
+/* ── BOTTOM TAB BAR ── */
+#tabBar {
+  height: calc(var(--tab-h) + var(--safe-bottom));
+  background: #000;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  padding-top: 8px;
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+.tab-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--dim);
+  transition: color 0.15s;
+}
+
+.tab-btn.active { color: var(--text); }
+
+.tab-icon {
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.tab-icon svg { width: 22px; height: 22px; fill: currentColor; }
+
+.tab-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Tab indicator dot */
+.tab-btn.active .tab-icon::after {
+  display: none;
+}
+
+/* ── COMPOSE SCREEN ── */
+#screen-compose {
+  padding: 20px 16px;
+  padding-bottom: calc(var(--tab-h) + var(--safe-bottom) + 80px);
+}
+
+.section-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+/* Category chips */
+.cat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 20px;
+}
+
+.chip {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid #2a2a2a;
+  background: #111;
+  color: var(--muted);
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chip:active { transform: scale(0.95); }
+.chip.active {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+
+/* Memo input */
+.memo-field {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+textarea#memoText {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  line-height: 1.7;
+  resize: none;
+  min-height: 120px;
+  -webkit-appearance: none;
+}
+
+textarea#memoText::placeholder { color: var(--dim); font-style: italic; }
+
+.field-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.char-count {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--dim);
+}
+
+/* Voice recorder card */
+.voice-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.mic-btn {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mic-btn.idle {
+  background: #fff;
+  box-shadow: 0 0 0 0 rgba(255,255,255,0);
+}
+
+.mic-btn.idle svg { fill: #000; }
+
+.mic-btn.recording {
+  background: #fff;
+  animation: micPulse 1.2s ease-in-out infinite;
+}
+
+.mic-btn.recording svg { fill: #000; }
+
+@keyframes micPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
+  70%  { box-shadow: 0 0 0 14px rgba(255,255,255,0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+}
+
+.mic-btn svg { width: 22px; height: 22px; }
+
+.voice-info { flex: 1; min-width: 0; }
+
+.voice-status {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.voice-status.ready { color: #aaa; }
+
+#waveform {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 24px;
+}
+
+.wave-bar {
+  width: 3px;
+  min-height: 3px;
+  border-radius: 2px;
+  background: #fff;
+  transition: height 0.08s ease;
+}
+
+.voice-timer {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text);
+  font-weight: 500;
+  flex-shrink: 0;
+  display: none;
+}
+
+/* Save FAB */
+.save-fab {
+  position: fixed;
+  bottom: calc(var(--tab-h) + var(--safe-bottom) + 16px);
+  right: 20px;
+  background: #fff;
+  color: #000;
+  border: none;
+  padding: 14px 24px;
+  border-radius: 30px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  transition: all 0.2s;
+  z-index: 50;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.save-fab:active { transform: scale(0.95); background: #ddd; }
+.save-fab svg { width: 16px; height: 16px; fill: #000; }
+
+/* ── LOG SCREEN ── */
+#screen-log {
+  padding: 0;
+}
+
+.log-toolbar {
+  padding: 12px 16px;
+  background: #000;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.search-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.search-bar svg { width: 14px; height: 14px; fill: var(--muted); flex-shrink: 0; }
+
+.search-bar input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  flex: 1;
+  -webkit-appearance: none;
+}
+
+.search-bar input::placeholder { color: var(--dim); }
+
+.filter-scroll {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.filter-scroll::-webkit-scrollbar { display: none; }
+
+.filter-chip {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.6rem;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid #222;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.filter-chip.active { background: #fff; color: #000; border-color: #fff; }
+
+.log-content { padding: 12px 16px; }
+
+/* Stats row */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.stat-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+.stat-num {
+  font-family: 'DM Mono', monospace;
+  font-size: 1.3rem;
+  font-weight: 500;
+  display: block;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.55rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Month groups */
+.month-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 10px;
+}
+
+.month-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.95rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.month-divider {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.month-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.6rem;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 2px 7px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+/* Memo card */
+.memo-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 8px;
+  display: flex;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.memo-card:active { background: #1a1a1a; }
+
+.memo-accent {
+  width: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  align-self: stretch;
+  min-height: 16px;
+  background: rgba(255,255,255,0.25);
+}
+
+.memo-body { flex: 1; min-width: 0; }
+
+.memo-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.memo-ts {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+
+.memo-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(255,255,255,0.12);
+  color: #aaa;
+}
+
+.memo-tag.voice-tag { background: rgba(255,255,255,0.06); color: #666; }
+
+.memo-text {
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.memo-text.is-voice { font-style: italic; color: #aaa; }
+
+.memo-audio {
+  margin-top: 10px;
+}
+
+.memo-audio audio {
+  width: 100%;
+  height: 32px;
+  border-radius: 6px;
+}
+
+.memo-delete {
+  position: absolute;
+  top: 8px; right: 8px;
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  line-height: 1;
+}
+
+.memo-card:hover .memo-delete,
+.memo-card:active .memo-delete { opacity: 1; }
+
+/* ── STATS SCREEN ── */
+#screen-stats {
+  padding: 20px 16px;
+}
+
+.stats-heading {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  margin-bottom: 4px;
+}
+
+.stats-sub {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-bottom: 24px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.big-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.big-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 16px;
+}
+
+.big-stat-num {
+  font-family: 'DM Mono', monospace;
+  font-size: 2.2rem;
+  font-weight: 500;
+  line-height: 1;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.big-stat-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.cat-breakdown {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.cat-breakdown-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 14px;
+}
+
+.cat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.cat-row-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+  color: #aaa;
+  text-transform: uppercase;
+  width: 70px;
+  flex-shrink: 0;
+}
+
+.cat-bar-wrap {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.cat-bar {
+  height: 100%;
+  background: rgba(255,255,255,0.5);
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.cat-row-count {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--muted);
+  width: 24px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.export-row {
+  display: flex;
+  gap: 10px;
+}
+
+.action-btn {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 14px;
+  border-radius: 12px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.action-btn:active { background: #222; }
+.action-btn.danger { color: #ff6b6b; border-color: rgba(255,107,107,0.2); }
+
+/* ── EMPTY STATE ── */
+.empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+
+.empty .empty-icon { font-size: 2.5rem; margin-bottom: 12px; display: block; }
+.empty p { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1rem; }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed;
+  bottom: calc(var(--tab-h) + var(--safe-bottom) + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: #fff;
+  color: #000;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 999;
+  pointer-events: none;
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ── INSTALL BANNER ── */
+#installBanner {
+  display: none;
+  position: fixed;
+  bottom: calc(var(--tab-h) + var(--safe-bottom) + 12px);
+  left: 16px; right: 16px;
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 14px;
+  padding: 14px 16px;
+  z-index: 90;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#installBanner.show { display: flex; }
+
+.banner-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.banner-text {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.85rem;
+  color: var(--text);
+  flex: 1;
+}
+
+.banner-text small {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.banner-actions { display: flex; gap: 8px; }
+
+.banner-btn {
+  background: #fff;
+  color: #000;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.banner-dismiss {
+  background: transparent;
+  border: 1px solid #333;
+  color: var(--muted);
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 0; }
+</style>
+</head>
+<body>
+
+<div id="statusBar"></div>
+
+<div id="app">
+  <header>
+    <div class="logo">Memo<em>Log</em></div>
+    <div class="header-right">
+      <div class="header-time" id="headerTime"></div>
+      <button id="installBtn">+ Install</button>
+    </div>
+  </header>
+
+  <div id="screens">
+
+    <!-- ── COMPOSE ── -->
+    <div class="screen active" id="screen-compose">
+      <div style="padding:20px 16px 0">
+        <div class="section-label">Category</div>
+        <div class="cat-chips">
+          <div class="chip" data-cat="personal">Personal</div>
+          <div class="chip" data-cat="work">Work</div>
+          <div class="chip" data-cat="idea">Idea</div>
+          <div class="chip" data-cat="reminder">Reminder</div>
+          <div class="chip" data-cat="health">Health</div>
+          <div class="chip" data-cat="errand">Errand</div>
+        </div>
+
+        <div class="memo-field">
+          <textarea id="memoText" placeholder="What's on your mind…" maxlength="2000" rows="5"></textarea>
+          <div class="field-footer">
+            <span class="char-count" id="charCount">0 / 2000</span>
+          </div>
+        </div>
+
+        <div class="voice-card">
+          <button class="mic-btn idle" id="micBtn">
+            <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+          </button>
+          <div class="voice-info">
+            <div class="voice-status" id="voiceStatus">Tap to record</div>
+            <div id="waveform"></div>
+          </div>
+          <div class="voice-timer" id="voiceTimer">0:00</div>
+        </div>
+      </div>
+
+      <button class="save-fab" id="saveBtn">
+        <svg viewBox="0 0 24 24"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+        Save
+      </button>
+    </div>
+
+    <!-- ── LOG ── -->
+    <div class="screen" id="screen-log">
+      <div class="log-toolbar">
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input type="search" id="searchInput" placeholder="Search memos…">
+        </div>
+        <div class="filter-scroll" id="filterScroll">
+          <button class="filter-chip active" data-filter="all">All</button>
+          <button class="filter-chip" data-filter="personal">Personal</button>
+          <button class="filter-chip" data-filter="work">Work</button>
+          <button class="filter-chip" data-filter="idea">Idea</button>
+          <button class="filter-chip" data-filter="reminder">Reminder</button>
+          <button class="filter-chip" data-filter="health">Health</button>
+          <button class="filter-chip" data-filter="errand">Errand</button>
+        </div>
+      </div>
+      <div class="log-content">
+        <div class="stats-row" id="statsRow">
+          <div class="stat-box"><span class="stat-num" id="sTotal">0</span><span class="stat-label">Total</span></div>
+          <div class="stat-box"><span class="stat-num" id="sVoice">0</span><span class="stat-label">Voice</span></div>
+          <div class="stat-box"><span class="stat-num" id="sText">0</span><span class="stat-label">Text</span></div>
+          <div class="stat-box"><span class="stat-num" id="sMonths">0</span><span class="stat-label">Months</span></div>
+        </div>
+        <div id="logContainer"></div>
+      </div>
+    </div>
+
+    <!-- ── STATS ── -->
+    <div class="screen" id="screen-stats">
+      <div class="stats-heading">Overview</div>
+      <div class="stats-sub" id="statsYear"></div>
+
+      <div class="big-stat-grid">
+        <div class="big-stat"><span class="big-stat-num" id="bsTotal">0</span><span class="big-stat-label">Total Entries</span></div>
+        <div class="big-stat"><span class="big-stat-num" id="bsMonths">0</span><span class="big-stat-label">Active Months</span></div>
+        <div class="big-stat"><span class="big-stat-num" id="bsVoice">0</span><span class="big-stat-label">Voice Memos</span></div>
+        <div class="big-stat"><span class="big-stat-num" id="bsText">0</span><span class="big-stat-label">Text Memos</span></div>
+      </div>
+
+      <div class="cat-breakdown">
+        <div class="cat-breakdown-title">By Category</div>
+        <div id="catBreakdown"></div>
+      </div>
+
+      <div class="export-row">
+        <button class="action-btn" id="exportTxt">↓ Export Log</button>
+        <button class="action-btn danger" id="clearAll">Clear All</button>
+      </div>
+    </div>
+
+  </div><!-- /screens -->
+
+  <nav id="tabBar">
+    <button class="tab-btn active" data-screen="compose">
+      <div class="tab-icon">
+        <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+      </div>
+      <span class="tab-label">Compose</span>
+    </button>
+    <button class="tab-btn" data-screen="log">
+      <div class="tab-icon">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+      </div>
+      <span class="tab-label">Log</span>
+    </button>
+    <button class="tab-btn" data-screen="stats">
+      <div class="tab-icon">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/></svg>
+      </div>
+      <span class="tab-label">Stats</span>
+    </button>
+  </nav>
+</div>
+
+<div id="toast"></div>
+
+<div id="installBanner">
+  <div class="banner-row">
+    <div class="banner-text">
+      Add MemoLog to your home screen
+      <small>Works offline · No account needed</small>
+    </div>
+    <div class="banner-actions">
+      <button class="banner-btn banner-dismiss" id="bannerDismiss">Later</button>
+      <button class="banner-btn" id="bannerInstall">Install</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let memos = JSON.parse(localStorage.getItem('memolog_v2') || '[]');
+let selectedCat = null;
+let activeFilter = 'all';
+let searchQuery = '';
+
+let mediaRecorder = null;
+let isRecording = false;
+let audioChunks = [];
+let recInterval = null;
+let recSecs = 0;
+let waveInterval = null;
+let pendingBlob = null;
+
+let deferredPrompt = null;
+
+// ── SERVICE WORKER ─────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// ── INSTALL PROMPT ─────────────────────────────────────────────────────────
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (!localStorage.getItem('ml_banner_dismissed')) {
+    setTimeout(() => document.getElementById('installBanner').classList.add('show'), 2000);
+  }
+  document.getElementById('installBtn').classList.add('visible');
+});
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').classList.remove('show');
+  document.getElementById('installBtn').classList.remove('visible');
+  deferredPrompt = null;
+  showToast('MemoLog installed ✓');
+});
+
+async function triggerInstall() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') deferredPrompt = null;
+}
+
+document.getElementById('installBtn').addEventListener('click', triggerInstall);
+document.getElementById('bannerInstall').addEventListener('click', () => {
+  document.getElementById('installBanner').classList.remove('show');
+  triggerInstall();
+});
+document.getElementById('bannerDismiss').addEventListener('click', () => {
+  document.getElementById('installBanner').classList.remove('show');
+  localStorage.setItem('ml_banner_dismissed', '1');
+});
+
+// ── CLOCK ──────────────────────────────────────────────────────────────────
+function tickClock() {
+  const now = new Date();
+  const date = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' });
+  const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('headerTime').innerHTML = `${date}<br>${time}`;
+}
+tickClock();
+setInterval(tickClock, 1000);
+
+// ── TABS ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = btn.dataset.screen;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('screen-' + target).classList.add('active');
+    if (target === 'log') renderLog();
+    if (target === 'stats') renderStats();
+  });
+});
+
+// ── CATEGORY CHIPS ─────────────────────────────────────────────────────────
+document.querySelectorAll('.chip').forEach(c => {
+  c.addEventListener('click', () => {
+    const cat = c.dataset.cat;
+    if (selectedCat === cat) {
+      selectedCat = null;
+      c.classList.remove('active');
+    } else {
+      document.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+      selectedCat = cat;
+      c.classList.add('active');
+    }
+  });
+});
+
+// ── TEXTAREA ───────────────────────────────────────────────────────────────
+document.getElementById('memoText').addEventListener('input', function() {
+  document.getElementById('charCount').textContent = this.value.length + ' / 2000';
+});
+
+// ── VOICE ──────────────────────────────────────────────────────────────────
+document.getElementById('micBtn').addEventListener('click', toggleRecording);
+
+async function toggleRecording() {
+  if (!isRecording) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      pendingBlob = null;
+
+      mediaRecorder.ondataavailable = e => { if (e.data.size) audioChunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        pendingBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        stream.getTracks().forEach(t => t.stop());
+        setVoiceStatus('ready', '✓ Voice memo ready');
+        document.getElementById('voiceTimer').style.display = 'none';
+        document.getElementById('waveform').style.cssText = '';
+        stopWave();
+      };
+
+      mediaRecorder.start(100);
+      isRecording = true;
+      recSecs = 0;
+      const btn = document.getElementById('micBtn');
+      btn.className = 'mic-btn recording';
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="black"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+      setVoiceStatus('', 'Recording…');
+      document.getElementById('voiceTimer').style.display = 'block';
+      startWave();
+
+      recInterval = setInterval(() => {
+        recSecs++;
+        const m = Math.floor(recSecs / 60), s = recSecs % 60;
+        document.getElementById('voiceTimer').textContent = m + ':' + String(s).padStart(2, '0');
+      }, 1000);
+
+    } catch (e) {
+      showToast('Mic access denied');
+    }
+  } else {
+    stopRecording();
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  isRecording = false;
+  clearInterval(recInterval);
+  const btn = document.getElementById('micBtn');
+  btn.className = 'mic-btn idle';
+  btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>';
+}
+
+function setVoiceStatus(cls, msg) {
+  const el = document.getElementById('voiceStatus');
+  el.className = 'voice-status' + (cls ? ' ' + cls : '');
+  el.textContent = msg;
+}
+
+function startWave() {
+  const wf = document.getElementById('waveform');
+  wf.innerHTML = '';
+  wf.style.cssText = 'display:flex;align-items:center;gap:2px;height:24px;';
+  for (let i = 0; i < 20; i++) {
+    const b = document.createElement('div');
+    b.className = 'wave-bar';
+    b.style.height = '3px';
+    wf.appendChild(b);
+  }
+  waveInterval = setInterval(() => {
+    wf.querySelectorAll('.wave-bar').forEach(b => {
+      b.style.height = (Math.random() * 20 + 3) + 'px';
+    });
+  }, 100);
+}
+
+function stopWave() {
+  clearInterval(waveInterval);
+  const wf = document.getElementById('waveform');
+  wf.querySelectorAll('.wave-bar').forEach(b => b.style.height = '3px');
+}
+
+// ── SAVE ───────────────────────────────────────────────────────────────────
+document.getElementById('saveBtn').addEventListener('click', saveEntry);
+
+function saveEntry() {
+  const text = document.getElementById('memoText').value.trim();
+  if (!text && !pendingBlob) { showToast('Add text or voice first'); return; }
+
+  const now = new Date();
+  const entry = {
+    id: Date.now(),
+    ts: now.toISOString(),
+    date: now.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' }),
+    time: now.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' }),
+    cat: selectedCat || 'none',
+    text,
+    type: pendingBlob ? (text ? 'both' : 'voice') : 'text',
+    audio: null,
+    secs: recSecs
+  };
+
+  const finish = (audio) => {
+    entry.audio = audio;
+    memos.unshift(entry);
+    localStorage.setItem('memolog_v2', JSON.stringify(memos));
+
+    document.getElementById('memoText').value = '';
+    document.getElementById('charCount').textContent = '0 / 2000';
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    selectedCat = null;
+    pendingBlob = null;
+    recSecs = 0;
+    setVoiceStatus('', 'Tap to record');
+
+    showToast('Saved ✓');
+
+    // Switch to log
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelector('[data-screen="log"]').classList.add('active');
+    document.getElementById('screen-log').classList.add('active');
+    renderLog();
+  };
+
+  if (pendingBlob) {
+    const r = new FileReader();
+    r.onload = () => finish(r.result);
+    r.readAsDataURL(pendingBlob);
+  } else {
+    finish(null);
+  }
+}
+
+// ── FILTER / SEARCH ────────────────────────────────────────────────────────
+document.querySelectorAll('.filter-chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    renderLog();
+  });
+});
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value.toLowerCase();
+  renderLog();
+});
+
+// ── RENDER LOG ─────────────────────────────────────────────────────────────
+function renderLog() {
+  const filtered = memos.filter(m => {
+    if (activeFilter !== 'all' && m.cat !== activeFilter) return false;
+    if (searchQuery) {
+      if (!(m.text + m.cat + m.date).toLowerCase().includes(searchQuery)) return false;
+    }
+    return true;
+  });
+
+  // Mini stats
+  const v = memos.filter(m => m.type === 'voice' || m.type === 'both').length;
+  const t = memos.filter(m => m.type === 'text').length;
+  const mo = new Set(memos.map(m => m.ts.slice(0,7))).size;
+  document.getElementById('sTotal').textContent = memos.length;
+  document.getElementById('sVoice').textContent = v;
+  document.getElementById('sText').textContent = t;
+  document.getElementById('sMonths').textContent = mo;
+
+  const cont = document.getElementById('logContainer');
+  if (!filtered.length) {
+    cont.innerHTML = `<div class="empty"><span class="empty-icon">📋</span><p>${memos.length ? 'No matches.' : 'No entries yet.\nGo compose your first memo!'}</p></div>`;
+    return;
+  }
+
+  const groups = {};
+  filtered.forEach(m => {
+    const key = m.ts.slice(0,7);
+    const label = new Date(m.ts).toLocaleDateString('en-US', { month:'long', year:'numeric' });
+    if (!groups[key]) groups[key] = { label, entries: [] };
+    groups[key].entries.push(m);
+  });
+
+  let html = '';
+  Object.keys(groups).sort((a,b) => b.localeCompare(a)).forEach(key => {
+    const g = groups[key];
+    html += `<div class="month-header">
+      <span class="month-name">${g.label}</span>
+      <div class="month-divider"></div>
+      <span class="month-badge">${g.entries.length}</span>
+    </div>`;
+
+    g.entries.forEach(m => {
+      const catTag = m.cat !== 'none' ? `<span class="memo-tag">${m.cat}</span>` : '';
+      const vtag = m.type !== 'text' ? `<span class="memo-tag voice-tag">🎙 ${m.type === 'both' ? 'voice+text' : 'voice'}</span>` : '';
+      const audioHtml = m.audio ? `<div class="memo-audio"><audio controls src="${m.audio}"></audio></div>` : '';
+      const textHtml = m.text ? `<div class="memo-text ${m.type === 'voice' ? 'is-voice' : ''}">${esc(m.text)}</div>` : '';
+
+      html += `<div class="memo-card" data-id="${m.id}">
+        <div class="memo-accent"></div>
+        <div class="memo-body">
+          <div class="memo-meta">
+            <span class="memo-ts">${m.date} · ${m.time}</span>
+            ${catTag}${vtag}
+          </div>
+          ${textHtml}${audioHtml}
+        </div>
+        <button class="memo-delete" onclick="deleteMemo(${m.id})">✕</button>
+      </div>`;
+    });
+  });
+
+  cont.innerHTML = html;
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+// ── DELETE ─────────────────────────────────────────────────────────────────
+function deleteMemo(id) {
+  if (!confirm('Delete this entry?')) return;
+  memos = memos.filter(m => m.id !== id);
+  localStorage.setItem('memolog_v2', JSON.stringify(memos));
+  showToast('Deleted');
+  renderLog();
+}
+
+// ── STATS ──────────────────────────────────────────────────────────────────
+function renderStats() {
+  const year = new Date().getFullYear();
+  document.getElementById('statsYear').textContent = year + ' · ' + memos.length + ' entries';
+
+  const v = memos.filter(m => m.type === 'voice' || m.type === 'both').length;
+  const t = memos.filter(m => m.type === 'text').length;
+  const mo = new Set(memos.map(m => m.ts.slice(0,7))).size;
+
+  document.getElementById('bsTotal').textContent = memos.length;
+  document.getElementById('bsMonths').textContent = mo;
+  document.getElementById('bsVoice').textContent = v;
+  document.getElementById('bsText').textContent = t;
+
+  const cats = ['personal','work','idea','reminder','health','errand'];
+  const counts = {};
+  cats.forEach(c => { counts[c] = memos.filter(m => m.cat === c).length; });
+  const max = Math.max(...Object.values(counts), 1);
+
+  const breakdown = document.getElementById('catBreakdown');
+  breakdown.innerHTML = cats.map(c => `
+    <div class="cat-row">
+      <span class="cat-row-label">${c}</span>
+      <div class="cat-bar-wrap">
+        <div class="cat-bar" style="width:${Math.round(counts[c]/max*100)}%"></div>
+      </div>
+      <span class="cat-row-count">${counts[c]}</span>
+    </div>
+  `).join('');
+}
+
+// ── EXPORT ─────────────────────────────────────────────────────────────────
+document.getElementById('exportTxt').addEventListener('click', () => {
+  const year = new Date().getFullYear();
+  let txt = `MEMOLOG — ${year}\nExported: ${new Date().toLocaleString()}\n${'═'.repeat(55)}\n\n`;
+
+  const byMonth = {};
+  memos.forEach(m => {
+    const k = new Date(m.ts).toLocaleDateString('en-US', { month:'long', year:'numeric' });
+    if (!byMonth[k]) byMonth[k] = [];
+    byMonth[k].push(m);
+  });
+
+  Object.keys(byMonth).sort().reverse().forEach(mo => {
+    txt += `\n── ${mo} ${'─'.repeat(Math.max(0, 48 - mo.length))}\n\n`;
+    byMonth[mo].forEach(m => {
+      txt += `[${m.date} · ${m.time}]`;
+      if (m.cat !== 'none') txt += `  [${m.cat.toUpperCase()}]`;
+      if (m.type !== 'text') txt += `  [VOICE]`;
+      txt += '\n';
+      if (m.text) txt += m.text + '\n';
+      if (m.audio) txt += '(voice recording — not included in text export)\n';
+      txt += '\n';
+    });
+  });
+
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([txt], { type: 'text/plain' }));
+  a.download = `memolog-${year}.txt`;
+  a.click();
+  showToast('Exported ✓');
+});
+
+document.getElementById('clearAll').addEventListener('click', () => {
+  if (!confirm('Delete ALL entries? This cannot be undone.')) return;
+  memos = [];
+  localStorage.removeItem('memolog_v2');
+  showToast('All entries cleared');
+  renderLog();
+  renderStats();
+});
+
+// ── TOAST ──────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+renderLog();
+</script>
+</body>
+</html>
